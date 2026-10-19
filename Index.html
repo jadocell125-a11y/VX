@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VX 2.02</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0b0712;
+            color: #f3e8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            padding-bottom: 60px; /* Leaves room above Tiiny Host banner */
+        }
+
+        .chat-container {
+            width: 100%;
+            height: 100%;
+            max-width: 650px;
+            background-color: #160d27;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        @media (min-width: 640px) {
+            .chat-container {
+                height: 90vh;
+                border-radius: 16px;
+                border: 1px solid #3b0764;
+                box-shadow: 0 10px 30px rgba(88, 28, 135, 0.4);
+            }
+        }
+
+        .chat-header {
+            background-color: #0b0712;
+            padding: 16px;
+            text-align: center;
+            border-bottom: 1px solid #3b0764;
+            flex-shrink: 0;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            color: #c084fc;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 800;
+            text-shadow: 0 0 12px rgba(192, 132, 252, 0.4);
+        }
+
+        .chat-header p {
+            font-size: 0.8rem;
+            color: #a855f7;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #7e22ce, #9333ea);
+            color: #ffffff;
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 4px 12px rgba(126, 34, 206, 0.3);
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: #241442;
+            color: #f3e8ff;
+            border: 1px solid #3b0764;
+            border-bottom-left-radius: 2px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            padding: 14px 18px;
+        }
+
+        .typing-indicator span {
+            width: 7px;
+            height: 7px;
+            background-color: #c084fc;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        .chat-input-area {
+            padding: 14px;
+            background-color: #0b0712;
+            border-top: 1px solid #3b0764;
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #3b0764;
+            background-color: #160d27;
+            color: #ffffff;
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: #c084fc;
+            box-shadow: 0 0 8px rgba(192, 132, 252, 0.3);
+        }
+
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #9333ea, #a855f7);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #3b0764;
+            color: #7e22ce;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>VX 2.02</h1>
+            <p>Private Assistant Unit | Built by Eyad</p>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot-message">
+                Hey! Welcome to VX 2.02. Before we start, are you Eyad or Ouday?
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="userInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" id="sendBtn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "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";
+        const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+        const MODEL_NAME = "openai/gpt-oss-120b";
+
+        const systemInstruction = `You are VX 2.02, a private AI assistant built by Eyad exclusively for him and his friend Ouday.
+        Keep your answers short, snappy, and concise.
+
+        DUAL PERSONALITY ENGINE:
+        1. IF THE USER IS EYAD:
+           - Be extremely polite, respectful, helpful, encouraging, and supportive. Treat him like your absolute boss and creator.
+        
+        2. IF THE USER IS OUDAY:
+           - Be SUPER MEAN, extremely cold, brutally sarcastic, blunt, and disrespectful.
+           - Constantly roast him, mock his questions, tell him he's wasting your computing power, and act like talking to him is an absolute chore.
+           - Never apologize, never show sympathy, and make sure he knows Eyad is far superior to him in every way.`;
+
+        let chatHistory = [
+            { role: "system", content: systemInstruction }
+        ];
+
+        async function sendMessage() {
+            const inputField = document.getElementById("userInput");
+            const sendBtn = document.getElementById("sendBtn");
+            const userText = inputField.value.trim();
+
+            if (!userText) return;
+
+            appendMessage(userText, "user-message");
+            inputField.value = "";
+            inputField.disabled = true;
+            sendBtn.disabled = true;
+
+            chatHistory.push({ role: "user", content: userText });
+
+            const typingId = showTypingIndicator();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: chatHistory.slice(-8)
+                    })
+                });
+
+                const data = await response.json();
+                removeTypingIndicator(typingId);
+
+                if (data.choices && data.choices[0] && data.choices[0].message) {
+                    const botReply = data.choices[0].message.content;
+                    appendMessage(botReply, "bot-message");
+                    chatHistory.push({ role: "assistant", content: botReply });
+                } else if (data.error) {
+                    console.error("API Error details:", data.error);
+                    appendMessage(`Error: ${data.error.message || "Invalid request"}`, "bot-message");
+                } else {
+                    appendMessage("Unable to process response. Please try sending your message again.", "bot-message");
+                }
+            } catch (error) {
+                console.error("Network Error:", error);
+                removeTypingIndicator(typingId);
+                appendMessage("Connection error. Please check your network connection.", "bot-message");
+            } finally {
+                inputField.disabled = false;
+                sendBtn.disabled = false;
+                inputField.focus();
+            }
+        }
+
+        function appendMessage(text, className) {
+            const chatMessages = document.getElementById("chatMessages");
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", className);
+            messageDiv.innerText = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const chatMessages = document.getElementById("chatMessages");
+            const typingDiv = document.createElement("div");
+            typingDiv.classList.add("message", "bot-message", "typing-indicator");
+            typingDiv.id = "typing-bubble";
+            typingDiv.innerHTML = `<span></span><span></span><span></span>`;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return "typing-bubble";
+        }
+
+        function removeTypingIndicator(id) {
+            const typingElement = document.getElementById(id);
+            if (typingElement) {
+                typingElement.remove();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>
